@@ -1,0 +1,66 @@
+interface BadgeProps {
+  status: string;
+  className?: string;
+}
+
+export function StatusBadge({ status, className = '' }: BadgeProps) {
+  const classMap: Record<string, string> = {
+    active: 'badge-success',
+    open: 'badge-info',
+    approved: 'badge-success',
+    completed: 'badge-success',
+    paid: 'badge-success',
+    hired: 'badge-success',
+    verified: 'badge-success',
+    finalized: 'badge-success',
+    acknowledged: 'badge-success',
+    present: 'badge-success',
+    remote: 'badge-info',
+    pending: 'badge-warning',
+    draft: 'badge-neutral',
+    submitted: 'badge-info',
+    reviewing: 'badge-warning',
+    shortlisted: 'badge-info',
+    interviewed: 'badge-info',
+    offered: 'badge-info',
+    late: 'badge-warning',
+    half_day: 'badge-warning',
+    on_leave: 'badge-warning',
+    in_progress: 'badge-info',
+    ongoing: 'badge-info',
+    processing: 'badge-warning',
+    enrolled: 'badge-info',
+    planned: 'badge-neutral',
+    probation: 'badge-warning',
+    contract: 'badge-info',
+    intern: 'badge-neutral',
+    permanent: 'badge-success',
+    rejected: 'badge-danger',
+    cancelled: 'badge-danger',
+    dismissed: 'badge-danger',
+    failed: 'badge-danger',
+    withdrawn: 'badge-danger',
+    suspended: 'badge-warning',
+    terminated: 'badge-danger',
+    resigned: 'badge-danger',
+    absent: 'badge-danger',
+    no_show: 'badge-danger',
+    expired: 'badge-warning',
+    overdue: 'badge-danger',
+    critical: 'badge-danger',
+    high: 'badge-warning',
+    medium: 'badge-warning',
+    low: 'badge-success',
+    gross: 'badge-danger',
+    major: 'badge-warning',
+    minor: 'badge-success',
+    moderate: 'badge-warning',
+    ready_now: 'badge-success',
+    'ready_1_2_years': 'badge-info',
+    'ready_3_5_years': 'badge-warning',
+    development_needed: 'badge-warning',
+  };
+
+  const cls = classMap[status.toLowerCase()] ?? 'badge-neutral';
+  return <span className={`${cls} ${className}`}>{status.replace(/_/g, ' ')}</span>;
+}
