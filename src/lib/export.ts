@@ -1,129 +1,133 @@
-import jsPDF from 'jspdf';
+import ExcelJS from 'exceljs';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 
-interface ExportColumn {
+export interface ExportColumn<T> {
   header: string;
-  key: string;
-  format?: (value: unknown, row: Record<string, unknown>) => string;
+  accessor: (row: T) => string | number;
+  width?: number;
 }
 
-export function exportToExcel(
+const stamp = () => new Date().toISOString().slice(0, 10);
+
+export async function exportToExcel<T>(
   filename: string,
   sheetName: string,
-  columns: ExportColumn[],
-  rows: Record<string, unknown>[]
-): void {
-  const data = rows.map((row) => {
-    const obj: Record<string, string> = {};
-    columns.forEach((col) => {
-      const val = row[col.key];
-      obj[col.header] = col.format ? col.format(val, row) : String(val ?? '');
-    });
-    return obj;
-  });
+  columns: ExportColumn<T>[],
+  rows: T[],
+  meta?: { title?: string; subtitle?: string },
+): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'AB Rwanda HRIS';
+  workbook.created = new Date();
+  const sheet = workbook.addWorksheet(sheetName);
 
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  XLSX.writeFile(wb, `${filename}.xlsx`);
-}
+  sheet.columns = columns.map((col) => ({
+    header: col.header,
+    key: col.header,
+    width: col.width ?? Math.max(16, col.header.length + 4),
+  }));
 
-export function exportToPDF(
-  filename: string,
-  title: string,
-  columns: ExportColumn[],
-  rows: Record<string, unknown>[],
-  subtitle?: string
-): void {
-  const doc = new jsPDF({ orientation: 'landscape' });
-
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text(title, 14, 22);
-
-  if (subtitle) {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    doc.text(subtitle, 14, 28);
-    doc.setTextColor(0);
+  let startRow = 1;
+  if (meta?.title) {
+    sheet.mergeCells(1, 1, 1, columns.length);
+    const titleCell = sheet.getCell(1, 1);
+    titleCell.value = meta.title;
+    titleCell.font = { size: 14, bold: true };
+    startRow = 2;
+    if (meta.subtitle) {
+      sheet.mergeCells(2, 1, 2, columns.length);
+      const subCell = sheet.getCell(2, 1);
+      subCell.value = meta.subtitle;
+      subCell.font = { size: 10, color: { argb: 'FF666666' } };
+      startRow = 3;
+    }
+    startRow += 1;
   }
 
-  doc.setFontSize(8);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, subtitle ? 33 : 28);
+  const headerRow = sheet.getRow(startRow);
+  columns.forEach((col, index) => {
+    const cell = headerRow.getCell(index + 1);
+    cell.value = col.header;
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A1A' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'left' };
+  });
+  headerRow.height = 20;
 
-  const head = [columns.map((c) => c.header)];
-  const body = rows.map((row) =>
-    columns.map((col) => {
-      const val = row[col.key];
-      return col.format ? col.format(val, row) : String(val ?? '');
-    })
-  );
-
-  autoTable(doc, {
-    head,
-    body,
-    startY: subtitle ? 37 : 32,
-    styles: { fontSize: 8, cellPadding: 3 },
-    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [240, 245, 255] },
-    margin: { left: 14, right: 14 },
+  rows.forEach((row, rowIndex) => {
+    const excelRow = sheet.getRow(startRow + 1 + rowIndex);
+    columns.forEach((col, colIndex) => {
+      const cell = excelRow.getCell(colIndex + 1);
+      cell.value = col.accessor(row);
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      if (rowIndex % 2 === 1) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5F5' } };
+      }
+    });
   });
 
-  doc.save(`${filename}.pdf`);
+  sheet.views = [{ state: 'frozen', ySplit: startRow }];
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  triggerDownload(blob, `${filename}-${stamp()}.xlsx`);
 }
 
-export function exportPayslipPDF(
-  employeeName: string,
-  employeeNumber: string,
-  payPeriod: string,
-  payslip: Record<string, unknown>,
-  details: { label: string; amount: number }[]
+export function exportToPdf<T>(
+  filename: string,
+  title: string,
+  subtitle: string,
+  columns: ExportColumn<T>[],
+  rows: T[],
+  options?: { orientation?: 'portrait' | 'landscape' },
 ): void {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
+  const doc = new jsPDF({ orientation: options?.orientation ?? 'landscape', unit: 'pt', format: 'a4' });
 
-  doc.setFillColor(37, 99, 235);
-  doc.rect(0, 0, pageWidth, 30, 'F');
-  doc.setTextColor(255);
   doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('AB Rwanda PLC', 14, 14);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Payslip', 14, 21);
+  doc.setTextColor(20, 20, 20);
+  doc.text(title, 40, 46);
 
-  doc.setTextColor(0);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Pay Period: ${payPeriod}`, pageWidth - 14, 14, { align: 'right' });
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 14, 21, { align: 'right' });
-
-  doc.setFontSize(11);
-  doc.text(`Employee: ${employeeName}`, 14, 42);
-  doc.text(`Employee No: ${employeeNumber}`, 14, 48);
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text(subtitle, 40, 62);
+  doc.text(`Generated ${new Date().toLocaleString('en-GB')}`, 40, 76);
 
   autoTable(doc, {
-    head: [['Item', 'Amount (RWF)']],
-    body: details.map((d) => [d.label, new Intl.NumberFormat('en-RW').format(d.amount)]),
-    startY: 55,
-    styles: { fontSize: 10, cellPadding: 4 },
-    headStyles: { fillColor: [37, 99, 235], textColor: 255 },
-    columnStyles: { 1: { halign: 'right' } },
+    startY: 92,
+    head: [columns.map((col) => col.header)],
+    body: rows.map((row) => columns.map((col) => String(col.accessor(row)))),
+    styles: { fontSize: 8, cellPadding: 5, textColor: [30, 30, 30], lineColor: [225, 225, 225], lineWidth: 0.5 },
+    headStyles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
+    margin: { left: 40, right: 40 },
   });
 
-  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Net Pay: ${new Intl.NumberFormat('en-RW').format(Number(payslip.net_pay ?? 0))} RWF`, 14, finalY + 15);
+  doc.save(`${filename}-${stamp()}.pdf`);
+}
 
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(120);
-  doc.text('This is a computer-generated document. AB Rwanda PLC - HRIS.', pageWidth / 2, 285, { align: 'center' });
+export function exportToCsv<T>(filename: string, columns: ExportColumn<T>[], rows: T[]): void {
+  const escape = (value: string | number) => {
+    const text = String(value ?? '');
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const lines = [
+    columns.map((col) => escape(col.header)).join(','),
+    ...rows.map((row) => columns.map((col) => escape(col.accessor(row))).join(',')),
+  ];
+  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+  triggerDownload(blob, `${filename}-${stamp()}.csv`);
+}
 
-  doc.save(`payslip_${employeeNumber}_${payPeriod.replace(/\s/g, '_')}.pdf`);
+function triggerDownload(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }

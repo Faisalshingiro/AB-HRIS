@@ -1,9 +1,37 @@
-function App() {
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import IntersectObserver from '@/components/common/IntersectObserver';
+import { Toaster } from '@/components/ui/sonner';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { RouteGuard } from '@/components/common/RouteGuard';
+import { AppLayout } from '@/components/layouts/AppLayout';
+import { routes } from './routes';
+
+const App: React.FC = () => {
+  const publicRoutes = routes.filter((route) => route.public);
+  const privateRoutes = routes.filter((route) => !route.public);
+
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <p>Start prompting (or editing) to see magic happen :)</p>
-    </div>
+    <Router>
+      <AuthProvider>
+        <RouteGuard>
+          <IntersectObserver />
+          <Routes>
+            {publicRoutes.map((route) => (
+              <Route key={route.path} path={route.path} element={route.element} />
+            ))}
+            <Route element={<AppLayout />}>
+              {privateRoutes.map((route) => (
+                <Route key={route.path} path={route.path} element={route.element} />
+              ))}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+          <Toaster />
+        </RouteGuard>
+      </AuthProvider>
+    </Router>
   );
-}
+};
 
 export default App;

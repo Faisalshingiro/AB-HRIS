@@ -9,6 +9,7 @@ interface StatCardProps {
 }
 
 export function StatCard({ label, value, icon, trend, color = 'blue' }: StatCardProps) {
+  const displayValue = typeof value === 'string' ? value.replace(/%{2,}/g, '%') : value;
   const colorMap = {
     blue: 'bg-blue-50 text-blue-600',
     green: 'bg-green-50 text-green-600',
@@ -23,7 +24,7 @@ export function StatCard({ label, value, icon, trend, color = 'blue' }: StatCard
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{displayValue}</p>
           {trend && (
             <p className={`mt-1 text-xs font-medium ${trend.positive ? 'text-green-600' : 'text-red-600'}`}>
               {trend.value}
