@@ -54,6 +54,7 @@ function SectionHeading({
 
 export default function LeavePage() {
   const { employeeId, isHR, isManager } = useAuth();
+  const canApproveRequests = isHR || isManager;
 
   const [types, setTypes] = useState<LeaveType[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
@@ -107,7 +108,7 @@ export default function LeavePage() {
   }, [employeeId]);
 
   const loadApprovals = useCallback(async () => {
-    if (!isManager) return;
+    if (!canApproveRequests) return;
     setApprovalsLoading(true);
     try {
       const pending = await leaveApi.requests({ status: 'pending', limit: 200 });
@@ -125,7 +126,7 @@ export default function LeavePage() {
     } finally {
       setApprovalsLoading(false);
     }
-  }, [isManager, isHR, employeeId]);
+  }, [canApproveRequests, isHR, employeeId]);
 
   const loadAll = useCallback(async () => {
     if (!isHR) return;
@@ -494,7 +495,7 @@ export default function LeavePage() {
       </section>
 
       {/* ------------------------------- approvals ------------------------------- */}
-      {isManager ? (
+      {canApproveRequests ? (
         <section className="mb-8">
           <SectionHeading
             title="Approvals"

@@ -225,8 +225,8 @@ function TableSkeleton({ rows = 6 }: { rows?: number }) {
 /* --------------------------------- page ---------------------------------- */
 
 export default function RecruitmentPage() {
-  const { isHR, isManager } = useAuth();
-  const canEdit = isHR || isManager;
+  const { isHR } = useAuth();
+  const canEdit = isHR;
 
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<JobOpening[]>([]);

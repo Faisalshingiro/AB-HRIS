@@ -144,6 +144,7 @@ function TableSkeleton({ rows = 6 }: { rows?: number }) {
 export default function DevelopmentPage() {
   const { isHR, isManager, employeeId } = useAuth();
   const canManage = isHR || isManager;
+  const isTeamManager = isManager && !isHR;
 
   const [loading, setLoading] = useState(true);
   const [trainings, setTrainings] = useState<Training[]>([]);
@@ -166,20 +167,26 @@ export default function DevelopmentPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [trainingRows, enrollmentRows, employeeRows] = await Promise.all([
+      const isTeamManager = isManager && !isHR;
+      const employeeRows = isTeamManager
+        ? employeeId
+          ? await employeesApi.list({ limit: 200, managerId: employeeId })
+          : []
+        : await employeesApi.list({ limit: 200 });
+      const reportIds = new Set(employeeRows.map((employee) => employee.id));
+      const [trainingRows, enrollmentRows] = await Promise.all([
         developmentApi.trainings(),
         developmentApi.enrollments(),
-        employeesApi.list({ limit: 200 }),
       ]);
       setTrainings(trainingRows);
-      setEnrollments(enrollmentRows);
+      setEnrollments(isTeamManager ? enrollmentRows.filter((row) => reportIds.has(row.employee_id)) : enrollmentRows);
       setEmployees(employeeRows);
     } catch (error) {
       toast.error('Could not load development data', { description: errorMessage(error) });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [employeeId, isHR, isManager]);
 
   useEffect(() => {
     void load();
@@ -437,7 +444,11 @@ export default function DevelopmentPage() {
       <PageHeader
         eyebrow="Learning & growth"
         title="Employee development"
-        description="Training catalogue, enrolment tracking and the skills coverage of the AB Rwanda workforce."
+        description={
+          isTeamManager
+            ? 'Development programmes, enrolments and skills progress for your team.'
+            : 'Training catalogue, enrolment tracking and the skills coverage of the AB Rwanda workforce.'
+        }
         actions={
           isHR ? (
             <Button size="sm" onClick={openCreateTraining}>
@@ -448,7 +459,7 @@ export default function DevelopmentPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <div className={`grid grid-cols-2 gap-3 md:gap-4 ${isHR ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
         <StatCard label="Total trainings" value={trainings.length} hint="Across the catalogue" icon={GraduationCap} />
         <StatCard
           label="Active enrolments"
@@ -463,7 +474,14 @@ export default function DevelopmentPage() {
           hint={`${completedEnrollments.length} of ${scopedEnrollments.length} enrolments`}
           icon={CheckCircle2}
         />
-        <StatCard label="Training spend" value={compactRWF(totalSpend)} hint="Committed across all programmes" icon={Wallet} />
+        {isHR ? (
+          <StatCard
+            label="Training spend"
+            value={compactRWF(totalSpend)}
+            hint="Committed across all programmes"
+            icon={Wallet}
+          />
+        ) : null}
       </div>
 
       <Tabs defaultValue="catalogue" className="space-y-4">
@@ -539,15 +557,15 @@ export default function DevelopmentPage() {
                       <Progress value={fill} className="h-1.5" />
                     </div>
 
-                    <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 md:mt-4">
-                      <span className="ed-table-num text-sm font-semibold text-foreground">{RWF(training.cost)}</span>
-                      {isHR ? (
+                    {isHR ? (
+                      <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 md:mt-4">
+                        <span className="ed-table-num text-sm font-semibold text-foreground">{RWF(training.cost)}</span>
                         <Button variant="ghost" size="sm" onClick={() => openEditTraining(training)}>
                           <Pencil className="mr-1.5 h-3.5 w-3.5" />
                           Edit
                         </Button>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}

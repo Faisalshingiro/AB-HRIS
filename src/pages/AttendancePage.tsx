@@ -48,6 +48,7 @@ const isoDaysAgo = (days: number): string => {
 
 export default function AttendancePage() {
   const { employeeId, isHR, isManager } = useAuth();
+  const canViewTeam = isHR || isManager;
 
   const [todayRecord, setTodayRecord] = useState<Attendance | null>(null);
   const [myRecords, setMyRecords] = useState<Attendance[]>([]);
@@ -87,9 +88,15 @@ export default function AttendancePage() {
   }, [employeeId]);
 
   const loadTeam = useCallback(async () => {
-    if (!isManager) return;
+    if (!canViewTeam) return;
     setTeamLoading(true);
     try {
+      const employeeRows = isHR
+        ? await employeesApi.list({ limit: 200 })
+        : employeeId
+          ? await employeesApi.list({ limit: 200, managerId: employeeId })
+          : [];
+      const teamIds = new Set(employeeRows.map((employee) => employee.id));
       const [rows, todayRows] = await Promise.all([
         attendanceApi.list({
           from,
@@ -99,14 +106,15 @@ export default function AttendancePage() {
         }),
         attendanceApi.list({ from: todayISO(), to: todayISO(), limit: 500 }),
       ]);
-      setTeamRecords(rows);
-      setTodayTeam(todayRows);
+      setEmployees(employeeRows);
+      setTeamRecords(isHR ? rows : rows.filter((row) => teamIds.has(row.employee_id)));
+      setTodayTeam(isHR ? todayRows : todayRows.filter((row) => teamIds.has(row.employee_id)));
     } catch (error) {
       toast.error('Could not load the team attendance', { description: errorMessage(error) });
     } finally {
       setTeamLoading(false);
     }
-  }, [isManager, from, to, employeeFilter]);
+  }, [canViewTeam, employeeId, employeeFilter, from, isHR, to]);
 
   useEffect(() => {
     void loadPersonal();
@@ -115,16 +123,6 @@ export default function AttendancePage() {
   useEffect(() => {
     void loadTeam();
   }, [loadTeam]);
-
-  useEffect(() => {
-    if (!isManager) return;
-    employeesApi
-      .list({ limit: 200 })
-      .then(setEmployees)
-      .catch(() => {
-        /* the employee filter simply stays empty */
-      });
-  }, [isManager]);
 
   const handleClockIn = async () => {
     if (!employeeId) {
@@ -136,7 +134,7 @@ export default function AttendancePage() {
       await attendanceApi.clockIn(employeeId);
       toast.success('Clocked in — have a good day');
       await loadPersonal();
-      if (isManager) await loadTeam();
+      if (canViewTeam) await loadTeam();
     } catch (error) {
       toast.error('Could not clock in', { description: errorMessage(error) });
     } finally {
@@ -154,7 +152,7 @@ export default function AttendancePage() {
       await attendanceApi.clockOut(employeeId);
       toast.success('Clocked out — hours recorded');
       await loadPersonal();
-      if (isManager) await loadTeam();
+      if (canViewTeam) await loadTeam();
     } catch (error) {
       toast.error('Could not clock out', { description: errorMessage(error) });
     } finally {
@@ -296,7 +294,7 @@ export default function AttendancePage() {
 
       {/* -------------------------------- stats -------------------------------- */}
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
-        {isManager ? (
+        {canViewTeam ? (
           <>
             <StatCard label="Present today" value={teamStats.present} icon={UserCheck} hint="Clocked in on site" />
             <StatCard label="Late today" value={teamStats.late} icon={Clock} hint="After 08:15" tone="accent" />
@@ -316,7 +314,7 @@ export default function AttendancePage() {
       </div>
 
       {/* ------------------------------ team view ------------------------------ */}
-      {isManager ? (
+      {canViewTeam ? (
         <section className="space-y-4">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div className="flex flex-col gap-2 md:flex-row md:items-end">

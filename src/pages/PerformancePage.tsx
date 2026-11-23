@@ -261,22 +261,38 @@ export default function PerformancePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cycleRows, goalRows, appraisalRows, employeeRows] = await Promise.all([
+      const isTeamManager = isManager && !isHR;
+      const employeeRows = canManage
+        ? isTeamManager
+          ? employeeId
+            ? await employeesApi.list({ limit: 200, managerId: employeeId })
+            : []
+          : await employeesApi.list({ limit: 200 })
+        : employeeId
+          ? await employeesApi.get(employeeId).then((employee) => (employee ? [employee] : []))
+          : [];
+      const reportIds = new Set(employeeRows.map((employee) => employee.id));
+      const [cycleRows, allGoals, allAppraisals] = await Promise.all([
         performanceApi.cycles(),
-        performanceApi.goals(),
-        performanceApi.appraisals(),
-        employeesApi.list({ limit: 200 }),
+        canManage ? performanceApi.goals() : employeeId ? performanceApi.goals({ employeeId }) : Promise.resolve([]),
+        canManage
+          ? performanceApi.appraisals()
+          : employeeId
+            ? performanceApi.appraisals({ employeeId })
+            : Promise.resolve([]),
       ]);
       setCycles(cycleRows);
-      setGoals(goalRows);
-      setAppraisals(appraisalRows);
+      setGoals(isTeamManager ? allGoals.filter((goal) => reportIds.has(goal.employee_id)) : allGoals);
+      setAppraisals(
+        isTeamManager ? allAppraisals.filter((appraisal) => reportIds.has(appraisal.employee_id)) : allAppraisals,
+      );
       setEmployees(employeeRows);
     } catch (error) {
       toast.error('Could not load performance data', { description: errorMessage(error) });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canManage, employeeId, isHR, isManager]);
 
   useEffect(() => {
     void load();

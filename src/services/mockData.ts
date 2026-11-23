@@ -281,7 +281,7 @@ export const DEMO_PROFILES: Record<string, Profile> = {
   admin: {
     id: 'd0000000-0000-4000-8000-000000000002',
     username: 'admin',
-    email: 'admin@miaoda.com',
+    email: 'admin@abbk.com',
     phone: '+250788100002',
     full_name: 'Alice Uwimana',
     role: 'admin',
@@ -293,7 +293,7 @@ export const DEMO_PROFILES: Record<string, Profile> = {
   hr: {
     id: 'd0000000-0000-4000-8000-000000000004',
     username: 'hr',
-    email: 'hr@miaoda.com',
+    email: 'hr@abbk.com',
     phone: '+250788100004',
     full_name: 'Claudine Mukamana',
     role: 'hr',
@@ -305,7 +305,7 @@ export const DEMO_PROFILES: Record<string, Profile> = {
   manager: {
     id: 'd0000000-0000-4000-8000-000000000001',
     username: 'manager',
-    email: 'manager@miaoda.com',
+    email: 'manager@abbk.com',
     phone: '+250788100001',
     full_name: 'Jean Bosco Habimana',
     role: 'manager',
@@ -317,7 +317,7 @@ export const DEMO_PROFILES: Record<string, Profile> = {
   finance: {
     id: 'd0000000-0000-4000-8000-000000000003',
     username: 'finance',
-    email: 'finance@miaoda.com',
+    email: 'finance@abbk.com',
     phone: '+250788100003',
     full_name: 'Eric Nshimiyimana',
     role: 'finance',
@@ -329,7 +329,7 @@ export const DEMO_PROFILES: Record<string, Profile> = {
   employee: {
     id: 'd0000000-0000-4000-8000-000000000015',
     username: 'employee',
-    email: 'employee@miaoda.com',
+    email: 'employee@abbk.com',
     phone: '+250788100015',
     full_name: 'Innocent Ndayisaba',
     role: 'employee',

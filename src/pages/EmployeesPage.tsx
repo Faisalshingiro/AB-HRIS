@@ -509,7 +509,7 @@ export function EmployeeFormDialog({
 
 export default function EmployeesPage() {
   const navigate = useNavigate();
-  const { isHR, isFinance, canManagePeople, employeeId } = useAuth();
+  const { isHR, isManager, canManagePeople, employeeId } = useAuth();
 
   const [employees, setEmployees] = useState<EmployeeWithRelations[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -521,13 +521,22 @@ export default function EmployeesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EmployeeWithRelations | null>(null);
 
-  const showSalary = isHR || isFinance;
+  const showSalary = isHR;
+  const isTeamManager = isManager && !canManagePeople;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [employeeRows, departmentRows, positionRows] = await Promise.all([
-        employeesApi.list({ limit: ROW_CAP }),
+        canManagePeople
+          ? employeesApi.list({ limit: ROW_CAP })
+          : isManager
+            ? employeeId
+              ? employeesApi.list({ limit: ROW_CAP, managerId: employeeId })
+              : Promise.resolve([])
+            : employeeId
+              ? employeesApi.get(employeeId).then((employee) => (employee ? [employee] : []))
+              : Promise.resolve([]),
         departmentsApi.list(),
         positionsApi.list(),
       ]);
@@ -539,7 +548,7 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canManagePeople, employeeId, isManager]);
 
   useEffect(() => {
     void load();
@@ -547,8 +556,9 @@ export default function EmployeesPage() {
 
   const scoped = useMemo(() => {
     if (canManagePeople) return employees;
+    if (isManager && employeeId) return employees.filter((employee) => employee.manager_id === employeeId);
     return employees.filter((employee) => employee.id === employeeId);
-  }, [employees, canManagePeople, employeeId]);
+  }, [employees, canManagePeople, employeeId, isManager]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -603,8 +613,12 @@ export default function EmployeesPage() {
     <div>
       <PageHeader
         eyebrow="People"
-        title="Employee register"
-        description="The single source of truth for every AB Rwanda staff member,  identity, assignment, contract and remuneration."
+        title={isTeamManager ? 'Your team' : 'Employee register'}
+        description={
+          isTeamManager
+            ? 'Personnel and work details for employees who report directly to you.'
+            : 'The single source of truth for every AB Rwanda staff member, identity, assignment, contract and remuneration.'
+        }
         actions={
           <>
             <ExportMenu
@@ -625,7 +639,12 @@ export default function EmployeesPage() {
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <StatCard label="Total employees" value={stats.total} icon={Users} hint="On the register" />
+        <StatCard
+          label={isTeamManager ? 'Direct reports' : 'Total employees'}
+          value={stats.total}
+          icon={Users}
+          hint={isTeamManager ? 'Reporting directly to you' : 'On the register'}
+        />
         <StatCard label="Active" value={stats.active} icon={UserCheck} hint="Currently in post" />
         <StatCard label="On probation" value={stats.probation} icon={UserPlus} hint="Under confirmation" />
         <StatCard label="Departments" value={stats.departments} icon={Building2} hint="With staff assigned" />
@@ -684,7 +703,9 @@ export default function EmployeesPage() {
             description={
               canManagePeople
                 ? 'Adjust the search or filters, or add a new employee to the register.'
-                : 'Your personnel file is not linked to this account yet. Contact HR.'
+                : isTeamManager
+                  ? 'No direct reports match this view.'
+                  : 'Your personnel file is not linked to this account yet. Contact HR.'
             }
             action={
               canManagePeople ? (

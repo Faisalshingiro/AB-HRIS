@@ -36,7 +36,7 @@ import { documentsApi } from '@/services/api';
 import type { DocumentRecord } from '@/types/types';
 
 const CATEGORIES = ['policy', 'finance', 'compliance', 'contract', 'other'] as const;
-const VISIBILITIES = ['all', 'hr', 'private'] as const;
+const VISIBILITIES = ['all', 'hr', 'finance', 'private'] as const;
 
 const CATEGORY_TONE: Record<string, 'neutral' | 'info' | 'warning' | 'accent'> = {
   policy: 'info',
@@ -58,7 +58,7 @@ const formatBytes = (bytes: number | null | undefined): string => {
 };
 
 export default function DocumentsPage() {
-  const { profile, employeeId, isHR, isFinance } = useAuth();
+  const { profile, employeeId, role, isHR, isFinance } = useAuth();
 
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +76,8 @@ export default function DocumentsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const canUpload = isHR || isFinance;
+  const availableCategories = role === 'finance' ? ['finance'] : CATEGORIES;
+  const availableVisibilities = role === 'finance' ? ['finance'] : VISIBILITIES;
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -92,31 +94,45 @@ export default function DocumentsPage() {
     void loadDocuments();
   }, [loadDocuments]);
 
+  const scopedDocuments = useMemo(
+    () =>
+      isHR
+        ? documents
+        : documents.filter(
+            (doc) =>
+              doc.visibility === 'all' ||
+              doc.owner_employee_id === employeeId ||
+              (isFinance && doc.category === 'finance' && doc.visibility === 'finance'),
+          ),
+    [documents, isHR, isFinance, employeeId],
+  );
+
   const visibleDocuments = useMemo(() => {
-    const scoped = isHR || isFinance
-      ? documents
-      : documents.filter((doc) => doc.visibility === 'all' || doc.owner_employee_id === employeeId);
     const term = search.trim().toLowerCase();
-    return scoped.filter((doc) => {
+    return scopedDocuments.filter((doc) => {
       if (categoryFilter !== 'all' && doc.category !== categoryFilter) return false;
       if (visibilityFilter !== 'all' && doc.visibility !== visibilityFilter) return false;
       if (term && !`${doc.title} ${doc.file_name}`.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [documents, isHR, isFinance, employeeId, search, categoryFilter, visibilityFilter]);
+  }, [scopedDocuments, search, categoryFilter, visibilityFilter]);
 
   const stats = useMemo(
     () => ({
-      total: documents.length,
-      policies: documents.filter((doc) => doc.category === 'policy').length,
-      compliance: documents.filter((doc) => doc.category === 'compliance').length,
-      storage: documents.reduce((total, doc) => total + Number(doc.file_size ?? 0), 0),
+      total: scopedDocuments.length,
+      policies: scopedDocuments.filter((doc) => doc.category === 'policy').length,
+      compliance: scopedDocuments.filter((doc) => doc.category === 'compliance').length,
+      storage: scopedDocuments.reduce((total, doc) => total + Number(doc.file_size ?? 0), 0),
     }),
-    [documents],
+    [scopedDocuments],
   );
 
   const openUpload = () => {
-    setForm({ title: '', category: 'policy', visibility: 'all' });
+    setForm({
+      title: '',
+      category: role === 'finance' ? 'finance' : 'policy',
+      visibility: role === 'finance' ? 'finance' : 'all',
+    });
     setFile(null);
     setFormError(null);
     setUploadOpen(true);
@@ -190,7 +206,11 @@ export default function DocumentsPage() {
       <PageHeader
         eyebrow="Records"
         title="Documents"
-        description="The organisation's document repository, policies, compliance evidence, contracts and finance records in one place."
+        description={
+          role === 'finance'
+            ? 'Shared documents and finance records needed for payroll and settlement work.'
+            : "The organisation's document repository, policies, compliance evidence, contracts and finance records in one place."
+        }
         actions={
           <>
             <ExportMenu
@@ -247,7 +267,7 @@ export default function DocumentsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
-              {CATEGORIES.map((category) => (
+              {availableCategories.map((category) => (
                 <SelectItem key={category} value={category}>
                   {titleCase(category)}
                 </SelectItem>
@@ -260,7 +280,7 @@ export default function DocumentsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All visibility</SelectItem>
-              {VISIBILITIES.map((visibility) => (
+              {availableVisibilities.map((visibility) => (
                 <SelectItem key={visibility} value={visibility}>
                   {visibility === 'all' ? 'Everyone' : titleCase(visibility)}
                 </SelectItem>

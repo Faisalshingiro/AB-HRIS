@@ -95,7 +95,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <h1 className="mt-12 max-w-md text-balance font-serif text-3xl font-bold leading-[1.1] tracking-tight md:mt-16 md:text-5xl">
+          <h1 className="mt-12 max-w-md text-balance font-serif text-3xl font-bold leading-[1.1] tracking-tight text-white md:mt-16 md:text-5xl">
             One record of every person, from first application to final settlement.
           </h1>
           <p className="mt-5 max-w-sm text-pretty text-sm leading-relaxed text-background/70">

@@ -109,8 +109,8 @@ function ProgressBar({ value }: { value: number }) {
 /* --------------------------------- page ---------------------------------- */
 
 export default function OnboardingPage() {
-  const { isHR, isManager, employeeId } = useAuth();
-  const canEdit = isHR || isManager;
+  const { isHR, employeeId } = useAuth();
+  const canEdit = isHR;
 
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<EmployeeWithRelations[]>([]);

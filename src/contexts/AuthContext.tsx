@@ -168,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Normal user authentication
-      const email = username.includes('@') ? username : `${username}@miaoda.com`;
+      const email = username.includes('@') ? username : `${username}@abbk.com`;
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       if (data.user) {
@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Registration is unavailable because this deployment is missing its Supabase configuration.');
       }
 
-      const email = `${username}@miaoda.com`;
+      const email = `${username}@abbk.com`;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -241,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const role = profile?.role ?? 'admin';
+  const role = profile?.role ?? null;
 
   const value = useMemo<AuthContextType>(
     () => ({
@@ -253,8 +253,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: role === 'admin',
       isHR: role === 'admin' || role === 'hr',
       isFinance: role === 'admin' || role === 'finance',
-      isManager: role === 'admin' || role === 'hr' || role === 'manager',
-      canManagePeople: role === 'admin' || role === 'hr' || role === 'manager',
+      isManager: role === 'admin' || role === 'manager',
+      canManagePeople: role === 'admin' || role === 'hr',
       hasRole: (...roles: UserRole[]) => (role ? roles.includes(role) : false),
       signInWithUsername,
       signUpWithUsername,

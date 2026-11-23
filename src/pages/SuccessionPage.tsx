@@ -145,8 +145,8 @@ function CardSkeleton() {
 /* --------------------------------- page ---------------------------------- */
 
 export default function SuccessionPage() {
-  const { isHR, isManager } = useAuth();
-  const canManage = isHR || isManager;
+  const { isHR } = useAuth();
+  const canManage = isHR;
 
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<SuccessionPlan[]>([]);

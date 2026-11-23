@@ -80,7 +80,7 @@ function TableSkeleton({ rows = 5 }: { rows?: number }) {
 
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { isHR, isFinance, canManagePeople, employeeId } = useAuth();
+  const { role, isHR, isManager, canManagePeople, employeeId } = useAuth();
 
   const [employee, setEmployee] = useState<EmployeeWithRelations | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,17 +97,37 @@ export default function EmployeeDetailPage() {
   const [documents, setDocuments] = useState<EmployeeDocument[]>([]);
   const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [access, setAccess] = useState<{ key: string; allowed: boolean } | null>(null);
 
   const loadedTabs = useRef<Set<string>>(new Set());
 
-  const canSeeSensitive = isHR || isFinance;
+  const canSeeSensitive = isHR || (Boolean(employeeId) && employeeId === id);
   const isOwnRecord = Boolean(employeeId) && employeeId === id;
-  const restricted = !canManagePeople && !isOwnRecord;
+  const accessKey = `${role ?? ''}:${employeeId ?? ''}:${id ?? ''}`;
+  const accessResolved = access?.key === accessKey;
+  const restricted = accessResolved && !access.allowed;
+  const recordAuthorized = isHR || isOwnRecord || (accessResolved && access.allowed);
+  const canViewRegister = canManagePeople || isManager;
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setEmployee(null);
+      setAccess({ key: accessKey, allowed: false });
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
+      let allowed = isHR || isOwnRecord;
+      if (!allowed && isManager && employeeId) {
+        const reports = await employeesApi.directReports(employeeId);
+        allowed = reports.some((report) => report.id === id);
+      }
+      setAccess({ key: accessKey, allowed });
+      if (!allowed) {
+        setEmployee(null);
+        return;
+      }
       const record = await employeesApi.get(id);
       setEmployee(record);
     } catch (error) {
@@ -116,7 +136,7 @@ export default function EmployeeDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [accessKey, employeeId, id, isHR, isManager, isOwnRecord]);
 
   useEffect(() => {
     void load();
@@ -136,7 +156,7 @@ export default function EmployeeDetailPage() {
   }, [isHR]);
 
   useEffect(() => {
-    if (!id || restricted) return;
+    if (!id || !recordAuthorized || (tab === 'documents' && !canSeeSensitive)) return;
     const cacheKey = `${id}:${tab}`;
     if (loadedTabs.current.has(cacheKey)) return;
     loadedTabs.current.add(cacheKey);
@@ -172,7 +192,7 @@ export default function EmployeeDetailPage() {
     };
 
     void run();
-  }, [tab, id, restricted]);
+  }, [tab, id, recordAuthorized, canSeeSensitive]);
 
   const mask = useCallback(
     (value: string | null | undefined): string => {
@@ -210,12 +230,16 @@ export default function EmployeeDetailPage() {
         <EmptyState
           icon={ShieldCheck}
           title="This record is restricted"
-          description="You can only open your own personnel file. Contact HR if you need access to another employee."
+          description={
+            isManager && !isHR
+              ? 'You can only open your own file or records for employees who report directly to you.'
+              : 'You can only open your own personnel file. Contact HR if you need access to another employee.'
+          }
           action={
             <Button asChild variant="outline">
-              <Link to="/employees">
+              <Link to={canViewRegister ? '/employees' : '/profile'}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to the register
+                {canViewRegister ? 'Back to the register' : 'Back to my profile'}
               </Link>
             </Button>
           }
@@ -233,9 +257,9 @@ export default function EmployeeDetailPage() {
           description="This personnel file may have been removed, or the link is out of date."
           action={
             <Button asChild variant="outline">
-              <Link to="/employees">
+              <Link to={canViewRegister ? '/employees' : '/profile'}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to the register
+                {canViewRegister ? 'Back to the register' : 'Back to my profile'}
               </Link>
             </Button>
           }
@@ -248,9 +272,9 @@ export default function EmployeeDetailPage() {
     <div>
       <div className="mb-4">
         <Button asChild variant="ghost" size="sm" className="-ml-2 text-muted-foreground">
-          <Link to="/employees">
+          <Link to={canViewRegister ? '/employees' : '/profile'}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Employee register
+            {canViewRegister ? 'Employee register' : 'My profile'}
           </Link>
         </Button>
       </div>
@@ -310,9 +334,11 @@ export default function EmployeeDetailPage() {
           <TabsTrigger value="leave" className="whitespace-nowrap">
             Leave
           </TabsTrigger>
-          <TabsTrigger value="documents" className="whitespace-nowrap">
-            Documents
-          </TabsTrigger>
+          {canSeeSensitive ? (
+            <TabsTrigger value="documents" className="whitespace-nowrap">
+              Documents
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="performance" className="whitespace-nowrap">
             Performance
           </TabsTrigger>
@@ -322,33 +348,32 @@ export default function EmployeeDetailPage() {
         <TabsContent value="overview" className="mt-4 grid gap-4 md:grid-cols-2">
           <Panel title="Personal details">
             <DetailRow label="Full name" value={fullName(employee)} />
-            <DetailRow label="Gender" value={titleCase(employee.gender)} />
-            <DetailRow label="Date of birth" value={formatDate(employee.date_of_birth)} />
-            <DetailRow label="National ID" value={<span className="ed-table-num">{mask(employee.national_id)}</span>} />
-            <DetailRow label="District" value={employee.district ?? ''} />
-            <DetailRow label="Address" value={employee.address ?? ''} />
+            {canSeeSensitive ? <DetailRow label="Gender" value={titleCase(employee.gender)} /> : null}
+            {canSeeSensitive ? <DetailRow label="Date of birth" value={formatDate(employee.date_of_birth)} /> : null}
+            {canSeeSensitive ? (
+              <DetailRow label="National ID" value={<span className="ed-table-num">{mask(employee.national_id)}</span>} />
+            ) : null}
+            {canSeeSensitive ? <DetailRow label="District" value={employee.district ?? ''} /> : null}
+            {canSeeSensitive ? <DetailRow label="Address" value={employee.address ?? ''} /> : null}
           </Panel>
 
           <Panel title="Contact & emergency">
             <DetailRow label="Email" value={employee.email} />
             <DetailRow label="Phone" value={employee.phone ?? ''} />
-            <DetailRow label="Emergency contact" value={employee.emergency_contact_name ?? ''} />
-            <DetailRow label="Emergency phone" value={employee.emergency_contact_phone ?? ''} />
+            {canSeeSensitive ? <DetailRow label="Emergency contact" value={employee.emergency_contact_name ?? ''} /> : null}
+            {canSeeSensitive ? <DetailRow label="Emergency phone" value={employee.emergency_contact_phone ?? ''} /> : null}
           </Panel>
 
-          <Panel title="Bank & statutory" className="md:col-span-2">
-            <div className="grid gap-x-8 md:grid-cols-2">
-              <DetailRow label="Bank" value={employee.bank_name ?? ''} />
-              <DetailRow label="Account" value={<span className="ed-table-num">{mask(employee.bank_account)}</span>} />
-              <DetailRow label="RSSB number" value={employee.rssb_number ?? ''} />
-              <DetailRow label="National ID" value={<span className="ed-table-num">{mask(employee.national_id)}</span>} />
-            </div>
-            {!canSeeSensitive ? (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Sensitive identifiers are masked to the last four characters for your role.
-              </p>
-            ) : null}
-          </Panel>
+          {canSeeSensitive ? (
+            <Panel title="Bank & statutory" className="md:col-span-2">
+              <div className="grid gap-x-8 md:grid-cols-2">
+                <DetailRow label="Bank" value={employee.bank_name ?? ''} />
+                <DetailRow label="Account" value={<span className="ed-table-num">{mask(employee.bank_account)}</span>} />
+                <DetailRow label="RSSB number" value={employee.rssb_number ?? ''} />
+                <DetailRow label="National ID" value={<span className="ed-table-num">{mask(employee.national_id)}</span>} />
+              </div>
+            </Panel>
+          ) : null}
         </TabsContent>
 
         {/* ------------------------------ employment ----------------------------- */}
@@ -369,30 +394,34 @@ export default function EmployeeDetailPage() {
             <DetailRow label="Department code" value={employee.department?.code ?? ''} />
           </Panel>
 
-          <Panel title="Salary breakdown" className="md:col-span-2">
-            <div className="grid gap-x-8 md:grid-cols-2">
-              <DetailRow label="Base salary" value={<span className="ed-table-num">{RWF(employee.base_salary)}</span>} />
-              <DetailRow
-                label="Housing allowance"
-                value={<span className="ed-table-num">{RWF(employee.housing_allowance)}</span>}
-              />
-              <DetailRow
-                label="Transport allowance"
-                value={<span className="ed-table-num">{RWF(employee.transport_allowance)}</span>}
-              />
-              <DetailRow
-                label="Other allowance"
-                value={<span className="ed-table-num">{RWF(employee.other_allowance)}</span>}
-              />
-              <DetailRow label="Total allowances" value={<span className="ed-table-num">{RWF(allowanceTotal)}</span>} />
-              <DetailRow
-                label="Gross monthly"
-                value={
-                  <span className="ed-table-num text-accent">{RWF(Number(employee.base_salary ?? 0) + allowanceTotal)}</span>
-                }
-              />
-            </div>
-          </Panel>
+          {canSeeSensitive ? (
+            <Panel title="Salary breakdown" className="md:col-span-2">
+              <div className="grid gap-x-8 md:grid-cols-2">
+                <DetailRow label="Base salary" value={<span className="ed-table-num">{RWF(employee.base_salary)}</span>} />
+                <DetailRow
+                  label="Housing allowance"
+                  value={<span className="ed-table-num">{RWF(employee.housing_allowance)}</span>}
+                />
+                <DetailRow
+                  label="Transport allowance"
+                  value={<span className="ed-table-num">{RWF(employee.transport_allowance)}</span>}
+                />
+                <DetailRow
+                  label="Other allowance"
+                  value={<span className="ed-table-num">{RWF(employee.other_allowance)}</span>}
+                />
+                <DetailRow label="Total allowances" value={<span className="ed-table-num">{RWF(allowanceTotal)}</span>} />
+                <DetailRow
+                  label="Gross monthly"
+                  value={
+                    <span className="ed-table-num text-accent">
+                      {RWF(Number(employee.base_salary ?? 0) + allowanceTotal)}
+                    </span>
+                  }
+                />
+              </div>
+            </Panel>
+          ) : null}
         </TabsContent>
 
         {/* ------------------------------ attendance ----------------------------- */}

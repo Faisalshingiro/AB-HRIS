@@ -121,11 +121,14 @@ async function runRemote<T>(
 }
 
 // In-memory / localStorage attendance for demo
-function getDemoAttendanceToday(): Attendance | null {
+function getDemoAttendanceToday(employeeId: string): Attendance | null {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const raw = localStorage.getItem(`abr_attendance_${today}`);
-    return raw ? JSON.parse(raw) : null;
+    const raw =
+      localStorage.getItem(`abr_attendance_${employeeId}_${today}`) ??
+      localStorage.getItem(`abr_attendance_${today}`);
+    const record = raw ? (JSON.parse(raw) as Attendance) : null;
+    return record?.employee_id === employeeId ? record : null;
   } catch {
     return null;
   }
@@ -253,11 +256,18 @@ export const positionsApi = {
 /* ------------------------------- employees ------------------------------ */
 
 export const employeesApi = {
-  async list(params?: { search?: string; departmentId?: string; status?: string; limit?: number }): Promise<EmployeeWithRelations[]> {
+  async list(params?: {
+    search?: string;
+    departmentId?: string;
+    status?: string;
+    managerId?: string;
+    limit?: number;
+  }): Promise<EmployeeWithRelations[]> {
     if (shouldQueryRemote()) {
       let query = supabase.from('employees').select(EMPLOYEE_SELECT).order('employee_no').limit(params?.limit ?? 200);
       if (params?.departmentId) query = query.eq('department_id', params.departmentId);
       if (params?.status) query = query.eq('status', params.status);
+      if (params?.managerId) query = query.eq('manager_id', params.managerId);
       if (params?.search) {
         const term = params.search.trim();
         query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,employee_no.ilike.%${term}%,email.ilike.%${term}%`);
@@ -269,6 +279,7 @@ export const employeesApi = {
     let list = [...mockEmployees];
     if (params?.departmentId) list = list.filter((e) => e.department_id === params.departmentId);
     if (params?.status) list = list.filter((e) => e.status === params.status);
+    if (params?.managerId) list = list.filter((e) => e.manager_id === params.managerId);
     if (params?.search) {
       const t = params.search.trim().toLowerCase();
       list = list.filter(
@@ -293,7 +304,7 @@ export const employeesApi = {
       const remote = await runRemote(supabase.from('employees').select(EMPLOYEE_SELECT).eq('profile_id', profileId).maybeSingle());
       if (remote) return remote as EmployeeWithRelations;
     }
-    return mockEmployees.find((e) => e.profile_id === profileId) ?? mockEmployees[1] ?? null;
+    return mockEmployees.find((e) => e.profile_id === profileId) ?? null;
   },
   async directReports(managerId: string): Promise<EmployeeWithRelations[]> {
     if (shouldQueryRemote()) {
@@ -539,7 +550,7 @@ export const attendanceApi = {
       const remote = await runRemote(query);
       if (remote) return asArray<Attendance>(remote);
     }
-    const todayRec = getDemoAttendanceToday();
+    const todayRec = params?.employeeId ? getDemoAttendanceToday(params.employeeId) : null;
     return todayRec ? [todayRec] : [];
   },
   async today(employeeId: string): Promise<Attendance | null> {
@@ -548,7 +559,7 @@ export const attendanceApi = {
       const remote = await runRemote(supabase.from('attendance').select('*').eq('employee_id', employeeId).eq('work_date', today).maybeSingle());
       if (remote) return remote as Attendance;
     }
-    return getDemoAttendanceToday();
+    return getDemoAttendanceToday(employeeId);
   },
   async clockIn(employeeId: string): Promise<void> {
     const today = new Date().toISOString().slice(0, 10);
@@ -566,7 +577,7 @@ export const attendanceApi = {
       created_at: now.toISOString(),
     };
     try {
-      localStorage.setItem(`abr_attendance_${today}`, JSON.stringify(record));
+      localStorage.setItem(`abr_attendance_${employeeId}_${today}`, JSON.stringify(record));
     } catch {}
     if (shouldQueryRemote()) {
       supabase.from('attendance').upsert(record, { onConflict: 'employee_id,work_date' }).catch(handleRemoteError);
@@ -574,7 +585,7 @@ export const attendanceApi = {
   },
   async clockOut(employeeId: string): Promise<void> {
     const today = new Date().toISOString().slice(0, 10);
-    const existing = getDemoAttendanceToday();
+    const existing = getDemoAttendanceToday(employeeId);
     const now = new Date();
     const clockInTime = existing?.clock_in ? new Date(existing.clock_in).getTime() : now.getTime() - 8 * 3600 * 1000;
     const hours = (now.getTime() - clockInTime) / 3_600_000;
@@ -590,7 +601,7 @@ export const attendanceApi = {
       created_at: existing?.created_at || now.toISOString(),
     };
     try {
-      localStorage.setItem(`abr_attendance_${today}`, JSON.stringify(record));
+      localStorage.setItem(`abr_attendance_${employeeId}_${today}`, JSON.stringify(record));
     } catch {}
     if (shouldQueryRemote()) {
       supabase.from('attendance').update(record).eq('id', record.id).catch(handleRemoteError);
@@ -1002,18 +1013,62 @@ export const successionApi = {
 /* --------------------------------- exit --------------------------------- */
 
 export const exitApi = {
-  async requests(): Promise<ExitRequest[]> {
+  async requests(employeeId?: string, options?: { financeScoped?: boolean }): Promise<ExitRequest[]> {
     if (shouldQueryRemote()) {
-      const remote = await runRemote(
-        supabase
+      if (options?.financeScoped) {
+        const remote = await runRemote(supabase.rpc('finance_exit_requests'));
+        if (remote) {
+          const rows = asArray<{
+            id: string;
+            employee_id: string;
+            exit_type: string;
+            notice_date: string;
+            last_working_day: string;
+            status: string;
+            created_at: string;
+            first_name: string;
+            last_name: string;
+            employee_no: string;
+            department_id: string | null;
+            base_salary: number;
+          }>(remote);
+          return rows.map((row) => ({
+            id: row.id,
+            employee_id: row.employee_id,
+            exit_type: row.exit_type,
+            notice_date: row.notice_date,
+            last_working_day: row.last_working_day,
+            reason: null,
+            status: row.status,
+            approved_by: null,
+            approved_at: null,
+            created_at: row.created_at,
+            employee: {
+              id: row.employee_id,
+              first_name: row.first_name,
+              last_name: row.last_name,
+              employee_no: row.employee_no,
+              department_id: row.department_id,
+              base_salary: row.base_salary,
+            },
+          }));
+        }
+      }
+      let query = supabase
           .from('exit_requests')
           .select('*, employee:employees!exit_requests_employee_id_fkey(id,first_name,last_name,employee_no)')
           .order('created_at', { ascending: false })
-          .limit(100),
-      );
-      if (remote && remote.length > 0) return asArray<ExitRequest>(remote);
+          .limit(100);
+      if (employeeId) query = query.eq('employee_id', employeeId);
+      const remote = await runRemote(query);
+      if (remote) return asArray<ExitRequest>(remote);
     }
-    return mockExitRequests;
+    if (options?.financeScoped) {
+      return mockExitRequests
+        .filter((request) => request.status !== 'completed')
+        .map((request) => ({ ...request, reason: null }));
+    }
+    return employeeId ? mockExitRequests.filter((request) => request.employee_id === employeeId) : mockExitRequests;
   },
   async createRequest(payload: Partial<ExitRequest>): Promise<void> {
     const newReq: ExitRequest = {
@@ -1041,9 +1096,9 @@ export const exitApi = {
       const remote = await runRemote(
         supabase
           .from('exit_clearances')
-          .select('*, department:departments!exit_clearances_department_id_fkey(id,name)')
+          .select('*')
           .eq('exit_request_id', exitRequestId)
-          .order('department_id')
+          .order('department')
           .limit(50),
       );
       if (remote) return asArray<ExitClearance>(remote);
@@ -1143,18 +1198,25 @@ export const notificationsApi = {
       const remote = await runRemote(
         supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
       );
-      if (remote && remote.length > 0) return asArray<Notification>(remote);
+      if (remote) return asArray<Notification>(remote);
     }
-    return mockNotifications;
+    return mockNotifications.filter((notification) => notification.user_id === userId);
   },
-  async markRead(id: string): Promise<void> {
-    const n = mockNotifications.find((notif) => notif.id === id);
+  async markRead(id: string, userId: string): Promise<void> {
+    const n = mockNotifications.find((notif) => notif.id === id && notif.user_id === userId);
     if (n) n.is_read = true;
-    if (shouldQueryRemote()) supabase.from('notifications').update({ is_read: true }).eq('id', id).catch(handleRemoteError);
+    if (shouldQueryRemote()) {
+      supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id)
+        .eq('user_id', userId)
+        .catch(handleRemoteError);
+    }
   },
   async markAllRead(userId: string): Promise<void> {
     mockNotifications.forEach((n) => {
-      n.is_read = true;
+      if (n.user_id === userId) n.is_read = true;
     });
     if (shouldQueryRemote()) supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).catch(handleRemoteError);
   },
@@ -1206,21 +1268,27 @@ export const auditApi = {
 /* ------------------------------- dashboard ------------------------------ */
 
 export const dashboardApi = {
-  async stats(): Promise<DashboardStats> {
+  async stats(options?: { includePayroll?: boolean }): Promise<DashboardStats> {
+    const includePayroll = options?.includePayroll ?? true;
+    const fallbackStats = (): DashboardStats => {
+      const stats = getMockDashboardStats();
+      return includePayroll ? stats : { ...stats, payrollStatus: null, payrollNet: 0 };
+    };
+
     // If in demo mode or remote unavailable, return the mock stats in <1ms without 10 network calls
     if (!shouldQueryRemote()) {
-      return getMockDashboardStats();
+      return fallbackStats();
     }
 
     try {
       const today = new Date().toISOString().slice(0, 10);
       const employeesRes = await runRemote(supabase.from('employees').select('id,status,department_id,hire_date').limit(500));
       if (!employeesRes || employeesRes.length === 0) {
-        return getMockDashboardStats();
+        return fallbackStats();
       }
 
       // If remote has data, calculate live stats
-      const [jobsRes, candidatesRes, leaveRes, appraisalsRes, casesRes, exitsRes, periodsRes, attendanceRes, departmentsRes] =
+      const [jobsRes, candidatesRes, leaveRes, appraisalsRes, casesRes, exitsRes, attendanceRes, departmentsRes] =
         await Promise.all([
           runRemote(supabase.from('job_openings').select('id,status').limit(200)),
           runRemote(supabase.from('candidates').select('id,stage').limit(500)),
@@ -1228,10 +1296,18 @@ export const dashboardApi = {
           runRemote(supabase.from('appraisals').select('id,status').limit(500)),
           runRemote(supabase.from('disciplinary_cases').select('id,status').limit(200)),
           runRemote(supabase.from('exit_requests').select('id,status').limit(200)),
-          runRemote(supabase.from('payroll_periods').select('id,name,status,total_net,period_start').order('period_start', { ascending: false }).limit(1)),
           runRemote(supabase.from('attendance').select('id,status,work_date').eq('work_date', today).limit(500)),
           runRemote(supabase.from('departments').select('id,name').limit(100)),
         ]);
+      const periodsRes = includePayroll
+        ? await runRemote(
+            supabase
+              .from('payroll_periods')
+              .select('id,name,status,total_net,period_start')
+              .order('period_start', { ascending: false })
+              .limit(1),
+          )
+        : null;
 
       const employees = asArray<{ id: string; status: string; department_id: string | null; hire_date: string }>(employeesRes);
       const jobs = asArray<{ id: string; status: string }>(jobsRes);
@@ -1288,7 +1364,7 @@ export const dashboardApi = {
         headcountTrend,
       };
     } catch {
-      return getMockDashboardStats();
+      return fallbackStats();
     }
   },
 };

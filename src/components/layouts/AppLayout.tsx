@@ -39,18 +39,16 @@ function BrandMark() {
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const { role } = useAuth();
-  const effectiveRole = role ?? 'admin';
   const location = useLocation();
-  const groups = useMemo(
-    () =>
-      navGroups
-        .map((group) => ({
-          ...group,
-          items: group.items.filter((item) => item.roles.includes(effectiveRole)),
-        }))
-        .filter((group) => group.items.length > 0),
-    [effectiveRole],
-  );
+  const groups = useMemo(() => {
+    if (!role) return [];
+    return navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => item.roles.includes(role)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [role]);
 
   return (
     <nav className="flex flex-col gap-5 px-3 py-4">

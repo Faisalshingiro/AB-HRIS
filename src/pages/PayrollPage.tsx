@@ -430,8 +430,8 @@ interface ConfirmState {
 }
 
 export default function PayrollPage() {
-  const { employeeId, profile, isFinance, isHR } = useAuth();
-  const isPayrollOfficer = isFinance || isHR;
+  const { employeeId, profile, isFinance } = useAuth();
+  const isPayrollOfficer = isFinance;
 
   const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
   const [periodsLoading, setPeriodsLoading] = useState(true);

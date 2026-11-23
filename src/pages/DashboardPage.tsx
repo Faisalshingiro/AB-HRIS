@@ -51,12 +51,13 @@ import type {
   LeaveRequest,
   Notification,
   PayrollItem,
+  PayrollPeriod,
 } from '@/types/types';
 import { RWF, compactRWF, formatDate, formatTime, fullName, titleCase } from '@/lib/format';
 import { toast } from 'sonner';
 
 export default function DashboardPage() {
-  const { profile, role, employeeId, isHR, isFinance, isManager } = useAuth();
+  const { profile, role, employeeId, isHR, isManager } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<EmployeeWithRelations | null>(null);
@@ -65,6 +66,8 @@ export default function DashboardPage() {
   const [myLeave, setMyLeave] = useState<LeaveRequest[]>([]);
   const [payslips, setPayslips] = useState<PayrollItem[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<LeaveRequest[]>([]);
+  const [teamSize, setTeamSize] = useState(0);
+  const [financePeriod, setFinancePeriod] = useState<PayrollPeriod | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [appraisalCount, setAppraisalCount] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -73,11 +76,14 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const [statsData, notifData] = await Promise.all([
-        dashboardApi.stats(),
+        role === 'admin' || role === 'hr' ? dashboardApi.stats({ includePayroll: role === 'admin' }) : Promise.resolve(null),
         profile?.id ? notificationsApi.list(profile.id) : Promise.resolve([]),
       ]);
       setStats(statsData);
       setNotifications(notifData.slice(0, 5));
+      setFinancePeriod(role === 'finance' ? (await payrollApi.periods())[0] ?? null : null);
+      setPendingApprovals([]);
+      setTeamSize(0);
 
       if (employeeId) {
         const [employee, attendance, balanceData, leaveData, slips, appraisals] = await Promise.all([
@@ -96,9 +102,12 @@ export default function DashboardPage() {
         setAppraisalCount(appraisals.filter((a) => a.status !== 'finalized').length);
       }
 
-      if (isManager && employeeId) {
+      if (role === 'admin' || role === 'hr') {
+        setPendingApprovals(await leaveApi.requests({ status: 'pending', limit: 100 }));
+      } else if (role === 'manager' && employeeId) {
         const reports = await employeesApi.directReports(employeeId);
         const reportIds = new Set(reports.map((r) => r.id));
+        setTeamSize(reports.length);
         const allLeave = await leaveApi.requests({ status: 'pending', limit: 100 });
         setPendingApprovals(allLeave.filter((l) => l.employee_id && reportIds.has(l.employee_id)));
       }
@@ -112,7 +121,7 @@ export default function DashboardPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeId, isManager]);
+  }, [employeeId, isHR, profile?.id, role]);
 
   const handleClock = async (action: 'in' | 'out') => {
     if (!employeeId) {
@@ -159,7 +168,15 @@ export default function DashboardPage() {
       <PageHeader
         eyebrow={`${titleCase(role ?? 'employee')} workspace · ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
         title={`Good day, ${profile?.full_name?.split(' ')[0] ?? 'colleague'}`}
-        description="A single view of headcount, approvals, attendance and payroll across AB Rwanda PLC."
+        description={
+          role === 'employee'
+            ? 'Your attendance, leave, payslips and personal requests.'
+            : role === 'manager'
+              ? 'Your team, approvals and people actions.'
+              : role === 'finance'
+                ? 'Payroll processing, settlements and your personal employee services.'
+                : 'People operations, approvals and workforce metrics across AB Rwanda PLC.'
+        }
         actions={
           employeeId ? (
             <div className="flex gap-2">
@@ -181,6 +198,8 @@ export default function DashboardPage() {
         }
       />
 
+      {(role === 'admin' || role === 'hr') && (
+      <>
       <div className="grid gap-4 md:grid-cols-4 md:gap-5">
         <StatCard label="Active headcount" value={stats?.activeEmployees ?? 0} hint={`${stats?.onProbation ?? 0} on probation`} icon={Users} />
         <StatCard
@@ -196,12 +215,21 @@ export default function DashboardPage() {
           icon={ClipboardList}
           tone="accent"
         />
-        <StatCard
-          label="Latest payroll"
-          value={compactRWF(stats?.payrollNet ?? 0)}
-          hint={stats?.payrollStatus ? `Status: ${titleCase(stats.payrollStatus)}` : 'No payroll period yet'}
-          icon={Wallet}
-        />
+        {role === 'admin' ? (
+          <StatCard
+            label="Latest payroll"
+            value={compactRWF(stats?.payrollNet ?? 0)}
+            hint={stats?.payrollStatus ? `Status: ${titleCase(stats.payrollStatus)}` : 'No payroll period yet'}
+            icon={Wallet}
+          />
+        ) : (
+          <StatCard
+            label="Open vacancies"
+            value={stats?.openRoles ?? 0}
+            hint={`${stats?.candidates ?? 0} candidates in pipeline`}
+            icon={Briefcase}
+          />
+        )}
       </div>
 
       <div className="mt-5 grid gap-5 md:grid-cols-3">
@@ -286,6 +314,58 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      </>
+      )}
+
+      {role === 'manager' ? (
+        <div className="mt-5 grid gap-4 md:grid-cols-3 md:gap-5">
+          <StatCard label="Direct reports" value={teamSize} hint="Employees reporting to you" icon={Users} />
+          <StatCard
+            label="Leave approvals"
+            value={pendingApprovals.length}
+            hint="Requests awaiting your decision"
+            icon={ClipboardList}
+            tone="accent"
+          />
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Team workspace</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">Open team records or review leave requests.</p>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild size="sm"><Link to="/employees">Team records</Link></Button>
+              <Button asChild size="sm" variant="outline"><Link to="/leave">Leave approvals</Link></Button>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
+      {role === 'finance' ? (
+        <div className="mt-5 grid gap-4 md:grid-cols-3 md:gap-5">
+          <StatCard
+            label="Latest payroll period"
+            value={financePeriod?.name ?? 'No period yet'}
+            hint={financePeriod ? `Status: ${titleCase(financePeriod.status)}` : 'Create a period to begin processing'}
+            icon={Wallet}
+          />
+          <StatCard
+            label="Net payroll"
+            value={financePeriod ? compactRWF(financePeriod.total_net) : '—'}
+            hint={financePeriod?.pay_date ? `Pay date ${formatDate(financePeriod.pay_date)}` : 'Latest processed period'}
+            icon={Wallet}
+          />
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Finance work queue</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">Payroll, finance clearances and settlements.</p>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild size="sm"><Link to="/payroll">Open payroll</Link></Button>
+              <Button asChild size="sm" variant="outline"><Link to="/exit">Clearances & settlements</Link></Button>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
 
       <div className="mt-5 grid gap-5 md:grid-cols-3">
         <Card>
@@ -455,22 +535,26 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {(isHR || isFinance || isManager) && (
-        <div className="mt-5 grid gap-4 md:grid-cols-4 md:gap-5">
-          <StatCard label="Open vacancies" value={stats?.openRoles ?? 0} hint={`${stats?.candidates ?? 0} candidates in pipeline`} icon={Briefcase} />
+      {isHR ? (
+        <div className={`mt-5 grid gap-4 md:gap-5 ${role === 'admin' ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+          {role === 'admin' ? (
+            <StatCard label="Open vacancies" value={stats?.openRoles ?? 0} hint={`${stats?.candidates ?? 0} candidates in pipeline`} icon={Briefcase} />
+          ) : null}
           <StatCard label="Appraisals in progress" value={stats?.pendingAppraisals ?? 0} hint="Not yet finalised" icon={ClipboardList} />
           <StatCard label="Open disciplinary cases" value={stats?.openCases ?? 0} hint="Under investigation or hearing" icon={ShieldCheck} />
           <StatCard label="Exits in progress" value={stats?.exitsInProgress ?? 0} hint="Clearance or settlement pending" icon={UserMinus} />
         </div>
-      )}
+      ) : null}
 
-      {isManager && pendingApprovals.length > 0 ? (
+      {(isHR || isManager) && pendingApprovals.length > 0 ? (
         <Card className="mt-5">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <CardTitle className="text-base">Awaiting your approval</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">Leave requests from your direct reports</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isHR ? 'Pending requests across the organisation' : 'Leave requests from your direct reports'}
+                </p>
               </div>
               <Button variant="outline" size="sm" asChild>
                 <Link to="/leave">Review</Link>

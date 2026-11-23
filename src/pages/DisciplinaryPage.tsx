@@ -74,7 +74,7 @@ const emptyRecordForm = (): RecordForm => ({
 });
 
 export default function DisciplinaryPage() {
-  const { employeeId, isHR, isManager } = useAuth();
+  const { employeeId, isHR } = useAuth();
 
   const [cases, setCases] = useState<DisciplinaryCase[]>([]);
   const [employees, setEmployees] = useState<EmployeeWithRelations[]>([]);
@@ -99,7 +99,7 @@ export default function DisciplinaryPage() {
   const [caseForm, setCaseForm] = useState({ status: 'open', outcome: '', sanction: '' });
   const [caseSaving, setCaseSaving] = useState(false);
 
-  const canRecord = isHR || isManager;
+  const canRecord = isHR;
 
   const loadCases = useCallback(async () => {
     setLoading(true);

@@ -27,22 +27,26 @@ const ROLE_REFERENCE: { role: UserRole; summary: string; access: string }[] = [
   {
     role: 'hr',
     summary: 'People operations',
-    access: 'People, recruitment, onboarding, performance, disciplinary, exit, documents and audit logs.',
+    access:
+      'Organisation-wide people records, recruitment, onboarding, attendance and leave administration, performance, development, succession, disciplinary, exit, documents and audit logs. Payroll access is limited to personal payslips.',
   },
   {
     role: 'manager',
     summary: 'Team leadership',
-    access: 'Team data, approvals, appraisals and development for direct reports.',
+    access:
+      'Direct-report records, attendance, leave approvals, performance and development. No organisation-wide dashboard, payroll register, recruitment or HR case access.',
   },
   {
     role: 'finance',
     summary: 'Payroll & settlements',
-    access: 'Payroll, final settlements, clearance sign-off and finance documents.',
+    access:
+      'Payroll processing, final settlements, finance clearance items and finance documents, plus personal self-service. No HR employee register or people-management modules.',
   },
   {
     role: 'employee',
     summary: 'Self-service',
-    access: 'Own profile, attendance, leave, payslips, documents and personal requests only.',
+    access:
+      'Own profile, attendance, leave, performance, payslips, documents and personal requests only. No employee directory or organisation-wide metrics.',
   },
 ];
 

@@ -107,7 +107,8 @@ export default function NotificationsPage() {
                             type="button"
                             className="text-xs font-medium text-muted-foreground hover:text-foreground"
                             onClick={async () => {
-                              await notificationsApi.markRead(item.id);
+                              if (!profile?.id) return;
+                              await notificationsApi.markRead(item.id, profile.id);
                               await load();
                             }}
                           >

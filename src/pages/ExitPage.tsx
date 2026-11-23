@@ -46,7 +46,7 @@ const toNumber = (value: string): number => {
 };
 
 export default function ExitPage() {
-  const { employeeId, isHR, isFinance, isManager } = useAuth();
+  const { employeeId, role, isHR, isFinance } = useAuth();
 
   const [requests, setRequests] = useState<ExitRequest[]>([]);
   const [employees, setEmployees] = useState<EmployeeWithRelations[]>([]);
@@ -81,8 +81,9 @@ export default function ExitPage() {
   const [addingItem, setAddingItem] = useState(false);
 
   const canClear = isHR || isFinance;
-  const canApprove = isHR || isManager;
+  const canApprove = isHR;
   const canComplete = isHR;
+  const canInitiate = isHR || role === 'employee';
 
   const loadSummary = useCallback(async (rows: ExitRequest[]) => {
     const active = rows.filter((request) => ACTIVE_STATUSES.includes(request.status)).slice(0, 25);
@@ -117,7 +118,14 @@ export default function ExitPage() {
   const loadRequests = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await exitApi.requests();
+      const rows =
+        role === 'employee'
+          ? employeeId
+            ? await exitApi.requests(employeeId)
+            : []
+          : role === 'finance'
+            ? await exitApi.requests(undefined, { financeScoped: true })
+            : await exitApi.requests();
       setRequests(rows);
       await loadSummary(rows);
     } catch (error) {
@@ -125,7 +133,7 @@ export default function ExitPage() {
     } finally {
       setLoading(false);
     }
-  }, [loadSummary]);
+  }, [loadSummary, role, employeeId]);
 
   useEffect(() => {
     void loadRequests();
@@ -363,7 +371,13 @@ export default function ExitPage() {
       <PageHeader
         eyebrow="Offboarding"
         title="Employee exit"
-        description="Resignations, terminations and retirements, clearances, final settlement and the closing of the personnel file."
+        description={
+          role === 'employee'
+            ? 'View and manage your own exit request and clearance.'
+            : role === 'finance'
+              ? 'Finance clearance items and final settlements, without access to HR case details.'
+              : 'Resignations, terminations and retirements, clearances, final settlement and the closing of the personnel file.'
+        }
         actions={
           <>
             <ExportMenu
@@ -373,10 +387,12 @@ export default function ExitPage() {
               columns={exportColumns}
               rows={requests}
             />
-            <Button onClick={openInitiate} disabled={!isHR && !employeeId}>
-              <Plus className="mr-2 h-4 w-4" />
-              Initiate exit
-            </Button>
+            {canInitiate ? (
+              <Button onClick={openInitiate} disabled={!isHR && !employeeId}>
+                <Plus className="mr-2 h-4 w-4" />
+                Initiate exit
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -418,7 +434,7 @@ export default function ExitPage() {
             title="No exit requests on file"
             description="When an employee resigns or a contract ends, initiate the exit here to start the clearance checklist."
             action={
-              isHR || employeeId ? (
+              canInitiate && (isHR || employeeId) ? (
                 <Button onClick={openInitiate}>
                   <Plus className="mr-2 h-4 w-4" />
                   Initiate exit
@@ -605,7 +621,7 @@ export default function ExitPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {selected.reason ? (
+                  {selected.reason && role !== 'finance' ? (
                     <div>
                       <p className="ed-label mb-1.5">Reason</p>
                       <p className="whitespace-pre-line text-sm text-foreground">{selected.reason}</p>
@@ -830,7 +846,9 @@ export default function ExitPage() {
                       ) : null}
                       {!canApprove && !canComplete ? (
                         <p className="text-xs text-muted-foreground">
-                          Only HR and the line manager can move this request forward.
+                          {isFinance
+                            ? 'Finance can update its clearance items and settlement. HR manages the exit status.'
+                            : 'Only HR can move this request forward.'}
                         </p>
                       ) : null}
                     </div>
