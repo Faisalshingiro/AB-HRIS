@@ -1,4 +1,4 @@
-import { supabase } from '@/db/supabase';
+import { isSupabaseConfigured, supabase } from '@/db/supabase';
 import type {
   Appraisal,
   AppraisalCycle,
@@ -84,6 +84,7 @@ let remoteHealthy = true;
 let lastRemoteAttempt = 0;
 
 function shouldQueryRemote(): boolean {
+  if (!isSupabaseConfigured) return false;
   // If user is in demo mode, skip network round-trips entirely for instant response (<1ms)
   if (isDemoMode()) return false;
   // If remote recently failed, do not block the page with repeated timeouts

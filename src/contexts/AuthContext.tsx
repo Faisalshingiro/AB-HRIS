@@ -1,11 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { supabase } from '@/db/supabase';
 import type { User } from '@supabase/supabase-js';
-import type { Profile, UserRole } from '@/types/types';
-import { DEMO_PROFILES } from '@/services/mockData';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { isSupabaseConfigured, supabase } from '@/db/supabase';
+import { DEMO_PROFILES } from '@/services/mockData';
+import type { Profile, UserRole } from '@/types/types';
 
 export async function getProfile(userId: string): Promise<Profile | null> {
+  if (!isSupabaseConfigured) return null;
+
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
   if (error) {
     console.warn('Failed to load remote profile:', error.message);
@@ -69,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (!isSupabaseConfigured) return;
+
     const { data } = await supabase.auth.getUser();
     if (!data.user) {
       setProfile(null);
@@ -79,6 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     supabase.auth
       .getSession()
       .then(async ({ data: { session } }) => {
@@ -142,12 +151,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('abr_demo_user', normalized);
 
         // Try background Supabase auth without failing if credentials aren't set in remote Supabase
-        const email = username.includes('@') ? username : `${normalized}@miaoda.com`;
-        supabase.auth.signInWithPassword({ email, password }).catch(() => {
-          // Ignore background auth failure for demo accounts
-        });
+        if (isSupabaseConfigured) {
+          const email = username.includes('@') ? username : `${normalized}@miaoda.com`;
+          supabase.auth.signInWithPassword({ email, password }).catch(() => {
+            // Ignore background auth failure for demo accounts
+          });
+        }
 
         return { error: null };
+      }
+
+      if (!isSupabaseConfigured) {
+        throw new Error('Company sign-in is unavailable because this deployment is missing its Supabase configuration.');
       }
 
       // Normal user authentication
@@ -167,6 +182,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithUsername = async (username: string, password: string, fullName: string) => {
     try {
+      if (!isSupabaseConfigured) {
+        throw new Error('Registration is unavailable because this deployment is missing its Supabase configuration.');
+      }
+
       const email = `${username}@miaoda.com`;
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -185,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     localStorage.removeItem('abr_demo_user');
-    await supabase.auth.signOut().catch(() => {});
+    if (isSupabaseConfigured) await supabase.auth.signOut().catch(() => {});
     setUser(null);
     setProfile(null);
   };

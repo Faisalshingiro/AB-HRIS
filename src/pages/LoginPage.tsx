@@ -1,13 +1,14 @@
+import { ArrowRight, Loader2, Lock, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Loader2, Lock, ShieldCheck, User } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { isSupabaseConfigured } from '@/db/supabase';
 
 const DEMO_ACCOUNTS = [
   { label: 'Administrator', username: 'admin', password: 'Adm!n#ABR2026$xQ7vLp' },
@@ -125,6 +126,15 @@ export default function LoginPage() {
           <p className="mt-2 text-pretty text-sm text-muted-foreground">
             Use your company credentials. Access is limited to the modules assigned to your role.
           </p>
+          {!isSupabaseConfigured ? (
+            <p
+              role="status"
+              className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200"
+            >
+              This deployment is missing its Supabase configuration. Demo sign-in is available; set
+              VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel to enable company accounts and saved data.
+            </p>
+          ) : null}
 
           <Tabs value={tab} onValueChange={setTab} className="mt-7">
             <TabsList className="grid w-full grid-cols-2">

@@ -1,16 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Check .env file.');
-}
+const configuredUrl = (() => {
+  if (!supabaseUrl || !supabaseAnonKey) return null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
+  try {
+    const url = new URL(supabaseUrl);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? supabaseUrl : null;
+  } catch {
+    return null;
+  }
+})();
+
+export const isSupabaseConfigured = Boolean(configuredUrl);
+
+export const supabase = createClient(
+  configuredUrl || 'https://missing-supabase-config.invalid',
+  supabaseAnonKey || 'missing-supabase-anon-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
   },
-});
+);
