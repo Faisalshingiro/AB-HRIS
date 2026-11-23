@@ -3,8 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design system: Editorial — magazine-style typography, high black-and-white contrast + a single accent color
-   Near-white paper base / ink-black text / deep red accent, thin dividers, subtle shadows, restrained transitions */
+/* AB Rwanda brand palette with editorial typography, dark surfaces, and restrained transitions */
 
 @font-face {
   font-family: 'PlayfairDisplay';
@@ -15,59 +14,62 @@
 @layer base {
   :root {
     --radius: 0.75rem;
+    --brand-corporate-blue: 197.89 90.91% 34.71%;
+    --brand-navy-blue: 214.71 67.11% 29.80%;
+    --brand-light-blue: 200.77 59.09% 56.86%;
+    --brand-corporate-grey: 207.27 4.42% 48.82%;
+    --brand-light-background: 210 30% 96%;
+    --brand-dark-text: 0 0% 20%;
 
-    /* Paper-white base / ink-black text */
-    --background: 0 0% 98%;
-    --foreground: 0 0% 7%;
+    --background: var(--brand-light-background);
+    --foreground: var(--brand-dark-text);
+    --heading: var(--brand-navy-blue);
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
+    --card-foreground: var(--brand-dark-text);
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover-foreground: var(--brand-dark-text);
 
-    /* Primary color is ink black, restrained and achromatic */
-    --primary: 0 0% 7%;
+    --primary: var(--brand-corporate-blue);
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 93%;
-    --secondary-foreground: 0 0% 7%;
+    --secondary: 210 10% 91%;
+    --secondary-foreground: var(--brand-dark-text);
 
-    --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 33%;
+    --muted: var(--brand-light-background);
+    --muted-foreground: var(--brand-corporate-grey);
 
-    /* The single accent color: deep red */
-    --accent: 354 64% 33%;
+    --accent: var(--brand-corporate-blue);
     --accent-foreground: 0 0% 100%;
 
     --destructive: 354 70% 38%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Extra-thin dividers */
-    --border: 0 0% 90%;
-    --input: 0 0% 88%;
-    --ring: 0 0% 7%;
+    --border: 210 20.83% 90.59%;
+    --input: 210 14% 82%;
+    --ring: var(--brand-light-blue);
 
-    --chart-1: 0 0% 7%;
-    --chart-2: 354 64% 33%;
-    --chart-3: 0 0% 40%;
-    --chart-4: 0 0% 68%;
-    --chart-5: 43 59% 44%;
+    --chart-1: var(--brand-navy-blue);
+    --chart-2: var(--brand-corporate-blue);
+    --chart-3: var(--brand-light-blue);
+    --chart-4: var(--brand-corporate-grey);
+    --chart-5: var(--brand-dark-text);
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 7%;
-    --sidebar-primary: 0 0% 7%;
+    --sidebar-background: var(--brand-light-background);
+    --sidebar-foreground: var(--brand-dark-text);
+    --sidebar-primary: var(--brand-corporate-blue);
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 95%;
-    --sidebar-accent-foreground: 354 64% 33%;
-    --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 0 0% 7%;
+    --sidebar-accent: 200 59% 94%;
+    --sidebar-accent-foreground: var(--brand-corporate-blue);
+    --sidebar-border: 210 16% 86%;
+    --sidebar-ring: var(--brand-light-blue);
 
     --success: 152 46% 30%;
     --success-foreground: 0 0% 100%;
     --warning: 36 72% 38%;
     --warning-foreground: 0 0% 100%;
-    --info: 210 45% 38%;
-    --info-foreground: 0 0% 100%;
+    --info: var(--brand-light-blue);
+    --info-foreground: var(--brand-dark-text);
 
     --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.06);
     --shadow-md: 0 10px 30px hsl(0 0% 0% / 0.10);
@@ -79,35 +81,48 @@
     --radius: 0.75rem;
     --background: 0 0% 6%;
     --foreground: 0 0% 96%;
+    --heading: var(--brand-light-blue);
     --card: 0 0% 9%;
     --card-foreground: 0 0% 96%;
     --popover: 0 0% 9%;
     --popover-foreground: 0 0% 96%;
-    --primary: 0 0% 96%;
-    --primary-foreground: 0 0% 6%;
+    --primary: var(--brand-corporate-blue);
+    --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 14%;
     --secondary-foreground: 0 0% 96%;
     --muted: 0 0% 12%;
     --muted-foreground: 0 0% 72%;
-    /* In dark mode the accent shifts to matte gold, ensuring readability against the dark background */
-    --accent: 43 59% 35%;
+    --accent: var(--brand-corporate-blue);
     --accent-foreground: 0 0% 100%;
     --destructive: 0 70% 53%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 18%;
     --input: 0 0% 20%;
-    --ring: 0 0% 96%;
+    --ring: var(--brand-light-blue);
 
     --success: 152 40% 52%;
     --success-foreground: 0 0% 6%;
     --warning: 36 62% 58%;
     --warning-foreground: 0 0% 6%;
-    --info: 210 45% 62%;
-    --info-foreground: 0 0% 6%;
+    --info: var(--brand-light-blue);
+    --info-foreground: var(--brand-dark-text);
 
     --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.5);
     --shadow-md: 0 10px 30px hsl(0 0% 0% / 0.6);
-    --chart-1: 0 0% 20%;
+    --chart-1: var(--brand-light-blue);
+    --chart-2: var(--brand-corporate-blue);
+    --chart-3: var(--brand-corporate-grey);
+    --chart-4: var(--brand-navy-blue);
+    --chart-5: 0 0% 96%;
+
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: var(--brand-corporate-blue);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: var(--brand-navy-blue);
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: var(--brand-light-blue);
   }
 }
 
@@ -131,6 +146,7 @@
     font-weight: 700;
     letter-spacing: var(--tracking-tight);
     line-height: 1.1;
+    color: hsl(var(--heading));
   }
 
   ::selection {

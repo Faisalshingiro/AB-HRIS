@@ -190,7 +190,7 @@ export default function DocumentsPage() {
       <PageHeader
         eyebrow="Records"
         title="Documents"
-        description="The organisation's document repository — policies, compliance evidence, contracts and finance records in one place."
+        description="The organisation's document repository, policies, compliance evidence, contracts and finance records in one place."
         actions={
           <>
             <ExportMenu

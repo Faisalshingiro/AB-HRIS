@@ -604,7 +604,7 @@ export default function EmployeesPage() {
       <PageHeader
         eyebrow="People"
         title="Employee register"
-        description="The single source of truth for every AB Rwanda staff member — identity, assignment, contract and remuneration."
+        description="The single source of truth for every AB Rwanda staff member,  identity, assignment, contract and remuneration."
         actions={
           <>
             <ExportMenu

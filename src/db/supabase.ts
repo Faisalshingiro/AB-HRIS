@@ -1,3 +1,3 @@
 
-export { isSupabaseConfigured, supabase } from '@/lib/supabase';
+export { isSupabaseConfigured, supabase, supabaseAuthStorageKey } from '@/lib/supabase';
                 

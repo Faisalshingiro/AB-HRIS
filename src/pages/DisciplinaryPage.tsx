@@ -294,7 +294,7 @@ export default function DisciplinaryPage() {
       <PageHeader
         eyebrow="Employee relations"
         title="Disciplinary"
-        description="Every case is logged, investigated and closed on the record — with a full audit trail of the actions taken."
+        description="Every case is logged, investigated and closed on the record, with a full audit trail of the actions taken."
         actions={
           <>
             <ExportMenu

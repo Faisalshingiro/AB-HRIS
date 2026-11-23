@@ -15,12 +15,15 @@ const configuredUrl = (() => {
 })();
 
 export const isSupabaseConfigured = Boolean(configuredUrl);
+const projectRef = configuredUrl ? new URL(configuredUrl).hostname.split('.')[0] : 'missing-supabase-config';
+export const supabaseAuthStorageKey = `sb-${projectRef}-auth-token`;
 
 export const supabase = createClient(
   configuredUrl || 'https://missing-supabase-config.invalid',
   supabaseAnonKey || 'missing-supabase-anon-key',
   {
     auth: {
+      storageKey: supabaseAuthStorageKey,
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,

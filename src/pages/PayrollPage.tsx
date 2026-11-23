@@ -806,7 +806,7 @@ export default function PayrollPage() {
       <PageHeader
         eyebrow="Finance & payroll"
         title="Payroll"
-        description="Monthly payroll runs, statutory deductions and bank schedules for AB Rwanda — every figure traceable to a payslip line."
+        description="Monthly payroll runs, statutory deductions and bank schedules for AB Rwanda, every figure traceable to a payslip line."
         actions={
           <>
             <Button variant="outline" onClick={() => void loadPeriods()} disabled={periodsLoading}>

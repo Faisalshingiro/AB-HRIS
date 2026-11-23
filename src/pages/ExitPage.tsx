@@ -363,7 +363,7 @@ export default function ExitPage() {
       <PageHeader
         eyebrow="Offboarding"
         title="Employee exit"
-        description="Resignations, terminations and retirements — clearances, final settlement and the closing of the personnel file."
+        description="Resignations, terminations and retirements, clearances, final settlement and the closing of the personnel file."
         actions={
           <>
             <ExportMenu

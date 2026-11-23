@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { isSupabaseConfigured, supabase } from '@/db/supabase';
+import { isSupabaseConfigured, supabase, supabaseAuthStorageKey } from '@/db/supabase';
 import { DEMO_PROFILES } from '@/services/mockData';
 import type { Profile, UserRole } from '@/types/types';
 
@@ -45,6 +45,16 @@ function createDemoUser(profile: Profile): User {
     created_at: profile.created_at,
     email: profile.email ?? undefined,
   } as User;
+}
+
+function clearSupabaseSessionStorage() {
+  try {
+    localStorage.removeItem(supabaseAuthStorageKey);
+    localStorage.removeItem(`${supabaseAuthStorageKey}-user`);
+    localStorage.removeItem(`${supabaseAuthStorageKey}-code-verifier`);
+  } catch (error) {
+    console.warn('Failed to clear local Supabase session storage:', error);
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -150,14 +160,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(createDemoUser(demoProf));
         localStorage.setItem('abr_demo_user', normalized);
 
-        // Try background Supabase auth without failing if credentials aren't set in remote Supabase
-        if (isSupabaseConfigured) {
-          const email = username.includes('@') ? username : `${normalized}@miaoda.com`;
-          supabase.auth.signInWithPassword({ email, password }).catch(() => {
-            // Ignore background auth failure for demo accounts
-          });
-        }
-
         return { error: null };
       }
 
@@ -203,10 +205,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    localStorage.removeItem('abr_demo_user');
-    if (isSupabaseConfigured) await supabase.auth.signOut().catch(() => {});
+    try {
+      localStorage.removeItem('abr_demo_user');
+    } catch (error) {
+      console.warn('Failed to clear local demo session:', error);
+    }
+
     setUser(null);
     setProfile(null);
+
+    if (!isSupabaseConfigured) {
+      clearSupabaseSessionStorage();
+      return;
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        supabase.auth.signOut({ scope: 'local' }),
+        new Promise<{ error: Error }>((resolve) => {
+          timeoutId = setTimeout(() => resolve({ error: new Error('Supabase sign-out timed out') }), 5000);
+        }),
+      ]);
+
+      if (result.error) {
+        console.warn('Supabase sign-out failed:', result.error.message);
+        toast.error('Signed out on this device, but the remote session could not be revoked.');
+      }
+    } catch (error) {
+      console.warn('Supabase sign-out failed:', error);
+      toast.error('Signed out on this device, but the remote session could not be revoked.');
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+      clearSupabaseSessionStorage();
+    }
   };
 
   const role = profile?.role ?? 'admin';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Menu, Search, X } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { navGroups, roleLabels } from '@/components/layouts/nav-config';
 import { notificationsApi } from '@/services/api';
@@ -101,8 +101,8 @@ export function AppLayout() {
       .catch(() => setUnread(0));
   }, [profile?.id, location.pathname]);
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    void signOut();
     navigate('/login', { replace: true });
   };
 
@@ -122,15 +122,12 @@ export function AppLayout() {
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 bg-sidebar p-0">
+        <SheetContent side="left" className="flex w-72 flex-col overflow-hidden bg-sidebar p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <div className="flex h-16 items-center justify-between border-b border-border px-5">
+          <div className="flex h-16 shrink-0 items-center border-b border-border px-5">
             <BrandMark />
-            <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} aria-label="Close navigation">
-              <X className="h-4 w-4" />
-            </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
             <NavList onNavigate={() => setMobileOpen(false)} />
           </div>
         </SheetContent>
@@ -200,7 +197,7 @@ export function AppLayout() {
                     <Link to="/notifications">Notifications</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-white">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
                   </DropdownMenuItem>

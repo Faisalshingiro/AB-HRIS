@@ -354,7 +354,7 @@ export default function LeavePage() {
       <PageHeader
         eyebrow="Time & attendance"
         title="Leave"
-        description="Balances, requests and approvals — every decision recorded against the employee's leave ledger."
+        description="Balances, requests and approvals, every decision recorded against the employee's leave ledger."
         actions={
           <Button onClick={openRequest} disabled={!employeeId}>
             <Plus className="mr-2 h-4 w-4" />

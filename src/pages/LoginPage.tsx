@@ -77,7 +77,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col md:flex-row">
-      <section className="relative flex flex-col justify-between overflow-hidden bg-foreground px-6 py-10 text-background md:w-[46%] md:px-12 md:py-14">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-foreground px-6 py-10 text-background md:flex md:w-[46%] md:px-12 md:py-14">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.07]"
           style={{
@@ -99,7 +99,7 @@ export default function LoginPage() {
             One record of every person, from first application to final settlement.
           </h1>
           <p className="mt-5 max-w-sm text-pretty text-sm leading-relaxed text-background/70">
-            Recruitment, onboarding, attendance, performance, payroll and exit — governed by role-based access and a
+            Recruitment, onboarding, attendance, performance, payroll and exit, governed by role-based access and a
             complete audit trail.
           </p>
         </div>
@@ -119,8 +119,15 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex flex-1 items-center justify-center px-5 py-10 md:px-10">
+      <section className="flex min-h-screen flex-1 items-center justify-center px-5 py-8 md:px-10 md:py-10">
         <div className="w-full max-w-md">
+          <div className="mb-7 flex justify-center md:hidden">
+            <img
+              src="/images/abr_logo.png"
+              alt="AB Rwanda logo"
+              className="h-11 w-auto max-w-[220px] rounded-md bg-white p-2 object-contain shadow-sm"
+            />
+          </div>
           <p className="ed-label">Secure access</p>
           <h2 className="mt-2 text-balance text-2xl font-bold tracking-tight md:text-3xl">Sign in</h2>
           <p className="mt-2 text-pretty text-sm text-muted-foreground">
