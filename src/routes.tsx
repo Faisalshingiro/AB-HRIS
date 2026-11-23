@@ -19,6 +19,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AuditLogsPage from './pages/AuditLogsPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 export interface RouteConfig {
   name: string;
@@ -40,6 +41,7 @@ const auditRoles: UserRole[] = ['admin', 'hr'];
 
 export const routes: RouteConfig[] = [
   { name: 'Login', path: '/login', element: <LoginPage />, public: true },
+  { name: 'Page Not Found', path: '/404', element: <NotFoundPage />, public: true },
   { name: 'Dashboard', path: '/', element: <DashboardPage />, roles: allRoles },
   { name: 'Employees', path: '/employees', element: <EmployeesPage />, roles: peopleRoles },
   { name: 'Employee Detail', path: '/employees/:id', element: <EmployeeDetailPage />, roles: allRoles },

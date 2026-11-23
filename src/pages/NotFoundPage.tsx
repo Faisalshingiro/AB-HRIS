@@ -1,0 +1,22 @@
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+
+export default function NotFoundPage() {
+  const navigate = useNavigate();
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
+      <div className="w-full max-w-lg text-center">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">AB Rwanda HRIS</p>
+        <p className="mt-8 text-7xl font-bold tracking-tight text-primary sm:text-8xl">404</p>
+        <h1 className="mt-4 text-2xl font-semibold text-foreground">Page not found</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          The page you're looking for doesn't exist or may have moved.
+        </p>
+        <Button className="mt-8" onClick={() => navigate('/')}>
+          Return to dashboard
+        </Button>
+      </div>
+    </main>
+  );
+}

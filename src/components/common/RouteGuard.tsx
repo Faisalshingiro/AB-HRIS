@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, matchPath } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { routes } from '@/routes';
 
@@ -34,8 +34,9 @@ export function RouteGuard({ children }: RouteGuardProps) {
     if (loading) return;
 
     const isPublic = matchPublicRoute(location.pathname, PUBLIC_ROUTES);
+    const isKnownRoute = routes.some((route) => Boolean(matchPath({ path: route.path, end: true }, location.pathname)));
 
-    if (!user && !isPublic) {
+    if (!user && !isPublic && isKnownRoute) {
       navigate('/login', { state: { from: location.pathname }, replace: true });
     }
   }, [user, loading, location.pathname, navigate]);

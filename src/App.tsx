@@ -36,8 +36,8 @@ const App: React.FC = () => {
                   element={<RoleGuard roles={route.roles ?? []}>{route.element}</RoleGuard>}
                 />
               ))}
-              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
+            <Route path="*" element={<Navigate to="/404" replace />} />
           </Routes>
           <Toaster />
         </RouteGuard>
